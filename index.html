@@ -1,1 +1,632 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Minecraft Server Projekt - Team Portal (vollständig)</title>
+  <meta name="description" content="Team-Portal mit LocalStorage, Login/Rollen, Sidebar, Suche, Sortierung, Dark/Light, Chat, Admin-Bereich, Registrierung mit Owner-Key" />
+  <style>
+    /* ---------------------------
+       Grundstyles (Dark-first)
+       --------------------------- */
+    :root{
+      --bg:#0a0015; --card:rgba(20,10,40,0.6); --accent1:#a855f7; --accent2:#ec4899;
+      --muted:#9ca3af; --text:#e0d4f7; --glass:rgba(255,255,255,0.04);
+    }
 
+    body.light{
+      --bg:#f6f7fb; --card: rgba(255,255,255,0.85); --accent1:#6b21a8; --accent2:#be185d;
+      --muted:#374151; --text:#0b1220; --glass:rgba(0,0,0,0.04);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;font-family:Inter,Segoe UI,Roboto,system-ui,Arial; background:linear-gradient(180deg,var(--bg) 0%, #2d1b4e22 60%); color:var(--text);
+      display:flex; min-height:100vh; overflow:hidden;
+    }
+
+    /* ---------------------------
+       Layout: Sidebar + Main
+       --------------------------- */
+    .sidebar{
+      width:280px; min-width:60px; background:linear-gradient(180deg, rgba(10,6,18,0.9), rgba(20,10,40,0.8));
+      border-right:1px solid rgba(255,255,255,0.03); padding:16px; display:flex; flex-direction:column; gap:12px; transition:width .25s ease;
+    }
+    .sidebar.compact{width:72px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700}
+    .brand h1{font-size:1rem;margin:0}
+
+    .nav{flex:1; overflow:auto;padding-top:6px}
+    .section-header{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;cursor:pointer}
+    .section-title{display:flex;align-items:center;gap:10px}
+    .channels{display:flex;flex-direction:column;gap:6px;padding-left:6px}
+    .channel{padding:8px 10px;border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer}
+    .channel:hover{background:var(--glass);transform:translateX(6px)}
+
+    .main{flex:1;display:flex;flex-direction:column;min-height:100vh}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, transparent, rgba(0,0,0,0.03));}
+    .topbar .left{display:flex;align-items:center;gap:12px}
+
+    .content{padding:20px;overflow:auto}
+
+    /* Cards */
+    .card{background:var(--card);border-radius:12px;padding:16px;border:1px solid rgba(168,85,247,0.08);backdrop-filter:blur(6px)}
+
+    /* Teamlist */
+    .controls{display:flex;gap:10px;align-items:center}
+    .search{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);min-width:220px;background:transparent;color:var(--text)}
+    .select{padding:8px 10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04)}
+
+    .members{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+    .member{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent);border-left:6px solid var(--accent1)}
+    .member .meta{display:flex;align-items:center;gap:12px}
+    .avatar{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700}
+
+    .member .actions{display:flex;gap:8px}
+    .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+    .btn.primary{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:white}
+
+    /* Edit modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(3,3,8,0.6);display:none;align-items:center;justify-content:center;z-index:60}
+    .modal{width:520px;max-width:92%;}
+    .modal.show{display:flex}
+
+    /* Floating + mobile */
+    .floating{position:fixed;right:22px;bottom:22px;border-radius:999px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:70}
+
+    .mobile-toggle{display:none}
+
+    /* Chat / Pages */
+    .page{display:none}
+    .page.active{display:block}
+    .chat-window{display:flex;flex-direction:column;height:60vh}
+    .messages{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+    .msg{max-width:70%;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02)}
+    .msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:white}
+
+    /* Admin badge */
+    .badge{padding:4px 8px;border-radius:8px;font-size:0.8rem}
+
+    /* Responsive */
+    @media (max-width:900px){
+      .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-110%);z-index:80}
+      .sidebar.open{transform:translateX(0)}
+      .mobile-toggle{display:inline-flex}
+      body.compactMain .sidebar{display:none}
+    }
+
+    /* small animations */
+    .fade{transition:all .22s ease}
+
+    /* role-color helpers (will be assigned inline too) */
+  </style>
+</head>
+<body>
+  <aside class="sidebar fade" id="sidebar">
+    <div class="brand">
+      <div class="logo">MP</div>
+      <div class="title">
+        <h1 style="font-size:14px;margin:0">Team.HopeMC.de</h1>
+        <div style="font-size:12px;color:var(--muted)">Team Portal</div>
+      </div>
+    </div>
+
+    <div class="nav" id="nav"></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" id="compactBtn" title="Sidebar ein-/ausklappen">⇆</button>
+      <button class="btn ghost" id="logoutBtn">Abmelden</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="left">
+        <button class="btn ghost mobile-toggle" id="openSidebar">☰</button>
+        <div class="controls">
+          <input class="search" id="searchInput" placeholder="Suche Mitglieder..." />
+          <select class="select" id="filterRole"><option value="">Alle Rollen</option></select>
+          <select class="select" id="sortBy"><option value="name">Sortieren: Name</option><option value="role">Sortieren: Rolle</option></select>
+        </div>
+      </div>
+      <div class="right">
+        <button class="btn ghost" id="themeToggle">🌙</button>
+        <span id="userBadge" style="margin-left:12px"></span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Pages -->
+      <section id="page-team" class="page active">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2>Teamliste</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn primary" id="openAdd">Neues Mitglied</button>
+            </div>
+          </div>
+
+          <div id="membersContainer" class="members"></div>
+        </div>
+      </section>
+
+      <section id="page-chat" class="page">
+        <div class="card chat-window">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px">
+            <h2 id="chatTitle">Team-Chat</h2>
+            <div id="chatControls"></div>
+          </div>
+          <div class="messages" id="messages"></div>
+          <div style="display:flex;gap:8px;padding-top:8px">
+            <input style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04)" id="chatInput" placeholder="Nachricht..." />
+            <button class="btn primary" id="sendMsg">Senden</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-announce" class="page">
+        <div class="card">
+          <h2>Ankündigungen</h2>
+          <div id="annList" style="margin-top:12px"></div>
+          <div style="margin-top:12px">
+            <textarea id="announceText" style="width:100%;height:80px;border-radius:8px;padding:8px;background:transparent;border:1px solid rgba(255,255,255,0.04)"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn primary" id="postAnn">Posten</button>
+              <button class="btn ghost" id="clearAnn">Löschen</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-admin" class="page">
+        <div class="card">
+          <h2>Admin-Bereich</h2>
+          <p id="adminNotice">Nur sichtbar für Owner/Owner-ähnliche Rollen.</p>
+          <div style="margin-top:12px">
+            <button class="btn primary" id="exportBtn">Teamliste exportieren (JSON)</button>
+            <button class="btn ghost" id="importBtn">Importieren</button>
+            <input type="file" id="importFile" style="display:none" />
+          </div>
+        </div>
+      </section>
+
+      <section id="page-dashboard" class="page">
+        <div class="card">
+          <h2>Dashboard</h2>
+          <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+            <div class="card" style="padding:12px;min-width:180px">Mitglieder: <strong id="statCount">0</strong></div>
+            <div class="card" style="padding:12px;min-width:180px">Rollen: <strong id="statRoles">0</strong></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal: Add / Edit -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal card">
+      <h3 id="modalTitle">Mitglied hinzufügen</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <input id="mName" placeholder="Benutzername (z.B. @Beispiel)" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text)" />
+        <select id="mRole" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text)"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn ghost" id="cancelModal">Abbrechen</button>
+          <button class="btn primary" id="saveMember">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating quick add -->
+  <button class="floating primary" id="floatingAdd">+</button>
+
+  <!-- Login / Register Modal -->
+  <div class="modal-backdrop" id="loginBackdrop" style="display:flex;z-index:90">
+    <div class="modal card">
+      <h3 id="loginTitle">Login / Registrierung</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <input id="loginName" placeholder="Benutzername" />
+        <input id="loginPassword" type="password" placeholder="Passwort" />
+        <select id="loginRole"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn ghost" id="openRegister">Registrieren</button>
+          <button class="btn primary" id="doLogin">Einloggen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal-backdrop" id="registerBackdrop">
+    <div class="modal card">
+      <h3>Registrierung</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <input id="regName" placeholder="Gewünschter Benutzername" />
+        <input id="regPassword" type="password" placeholder="Passwort" />
+        <input id="regPassword2" type="password" placeholder="Passwort wiederholen" />
+        <input id="regOwnerKey" placeholder="Owner-Key (vom Owner erhalten)" />
+        <select id="regRole"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn ghost" id="cancelRegister">Abbrechen</button>
+          <button class="btn primary" id="doRegister">Registrieren</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;color:var(--muted);font-size:13px">Hinweis: Zur Registrierung wird ein Owner-Key benötigt, den der Owner ausgibt. Ohne Key ist keine Registrierung möglich.</div>
+    </div>
+  </div>
+
+  <script>
+    /* =====================
+       Datenmodel + Defaults
+       ===================== */
+    const OWNER_KEY = 'H8834P45t2'; // vom Nutzer vorgegeben
+
+    const ROLE_COLORS = {
+      'Owner':'#ffbf00','Co-Owner':'#a855f7','Manager':'#06b6d4','Developer+':'#10b981','Developer':'#22c55e','Teamleitung':'#f97316',
+      'Sr.Admin':'#ef4444','Admin':'#fb7185','Jr.Admin':'#ef9a9a','Content+':'#8b5cf6','Content':'#60a5fa','Jr.Content':'#93c5fd',
+      'Sr.Mod':'#f43f5e','Mod':'#fb923c','Jr.Mod':'#fbbf24','Sr.Supporter':'#34d399','Supporter':'#7c3aed','Jr.Supporter':'#a78bfa','Content-Creator':'#ec4899',
+      'Member':'#9ca3af'
+    };
+
+    const DEFAULT_MEMBERS = [
+      {name:'𝐆𝐨𝐬𝐭𝐥𝐞𝐟𝐭',role:'Owner'},
+      {name:'MommicMc',role:'Co-Owner'},
+      {name:'Max',role:'Developer'},
+      {name:'Mr_Wuff',role:'Developer+'},
+      {name:'𝐉𝐨𝐧𝐨𝐱',role:'Jr.Admin'},
+      {name:'Shotti',role:'Mod'}
+    ];
+
+    const STORAGE_KEY = 'teamPortalMembers_v1';
+    const USER_KEY = 'teamPortalUser_v1';
+    const USERS_STORE = 'teamPortalUsers_v1'; // registered users (with password hash)
+
+    /* ===============
+       UI References
+       =============== */
+    const nav = document.getElementById('nav');
+    const membersContainer = document.getElementById('membersContainer');
+    const searchInput = document.getElementById('searchInput');
+    const filterRole = document.getElementById('filterRole');
+    const sortBy = document.getElementById('sortBy');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const mName = document.getElementById('mName');
+    const mRole = document.getElementById('mRole');
+    const modalTitle = document.getElementById('modalTitle');
+    const saveMemberBtn = document.getElementById('saveMember');
+    const cancelModal = document.getElementById('cancelModal');
+    const openAdd = document.getElementById('openAdd');
+    const floatingAdd = document.getElementById('floatingAdd');
+
+    const loginBackdrop = document.getElementById('loginBackdrop');
+    const loginName = document.getElementById('loginName');
+    const loginPassword = document.getElementById('loginPassword');
+    const loginRole = document.getElementById('loginRole');
+    const doLogin = document.getElementById('doLogin');
+    const openRegister = document.getElementById('openRegister');
+
+    const registerBackdrop = document.getElementById('registerBackdrop');
+    const regName = document.getElementById('regName');
+    const regPassword = document.getElementById('regPassword');
+    const regPassword2 = document.getElementById('regPassword2');
+    const regOwnerKey = document.getElementById('regOwnerKey');
+    const regRole = document.getElementById('regRole');
+    const doRegister = document.getElementById('doRegister');
+    const cancelRegister = document.getElementById('cancelRegister');
+
+    const themeToggle = document.getElementById('themeToggle');
+    const compactBtn = document.getElementById('compactBtn');
+    const sidebarEl = document.getElementById('sidebar');
+    const openSidebar = document.getElementById('openSidebar');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const pages = document.querySelectorAll('.page');
+
+    /* ==============
+       App State
+       ==============
+    */
+    let members = loadMembers();
+    let editingIndex = null;
+    let currentUser = loadUser();
+
+    /* ------------------
+       Init
+       ------------------ */
+    function init(){
+      ensureRolesPopulated();
+      renderSidebar();
+      renderMembers();
+      populateFilters();
+      attachHandlers();
+      renderStats();
+      applyTheme(loadTheme());
+      // Show login if no user logged in
+      if(!currentUser){ loginBackdrop.style.display='flex' } else { onLoginSuccess(currentUser) }
+    }
+
+    /* ------------------
+       Storage helpers
+       ------------------ */
+    function saveMembers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(members)) }
+    function loadMembers(){ const raw = localStorage.getItem(STORAGE_KEY); return raw? JSON.parse(raw): DEFAULT_MEMBERS.slice() }
+    function saveUser(u){ localStorage.setItem(USER_KEY, JSON.stringify(u)) }
+    function loadUser(){ try{ const r=localStorage.getItem(USER_KEY); return r?JSON.parse(r):null }catch(e){return null} }
+
+    function saveUsersStore(us){ localStorage.setItem(USERS_STORE, JSON.stringify(us)) }
+    function loadUsersStore(){ const r = localStorage.getItem(USERS_STORE); return r?JSON.parse(r):[] }
+
+    /* ------------------
+       Roles + Filters
+       ------------------ */
+    function ensureRolesPopulated(){
+      const roles = Object.keys(ROLE_COLORS);
+      roles.forEach(r=>{
+        const opt = document.createElement('option'); opt.value=r; opt.textContent=r; mRole.appendChild(opt);
+        const opt2 = document.createElement('option'); opt2.value=r; opt2.textContent=r; filterRole.appendChild(opt2);
+        const opt3 = document.createElement('option'); opt3.value=r; opt3.textContent=r; loginRole.appendChild(opt3);
+        const opt4 = document.createElement('option'); opt4.value=r; opt4.textContent=r; regRole.appendChild(opt4);
+      })
+      // For security UX: registration should not allow creating Owner or Co-Owner directly
+      try{ regRole.querySelector('option[value="Owner"]').disabled=true; regRole.querySelector('option[value="Co-Owner"]').disabled=true }catch(e){}
+    }
+
+    function populateFilters(){ filterRole.value=''; }
+
+    /* ------------------
+       Render Sidebar (Accordion: only one open)
+       ------------------ */
+    const SECTIONS = [
+      {title:'Team-Intern', channels:['team-chat','team-liste','ankündigung']},
+      {title:'Owner', channels:['owner-chat','owner-ankündigungen']},
+      {title:'Co-Owner', channels:['co-owner-chat','co-owner-planung']},
+      {title:'Manager', channels:['manager-chat','manager-aufgaben']},
+      {title:'Developer+', channels:['dev-plus-chat','dev-plus-projekte']},
+      {title:'Developer', channels:['developer-chat','developer-bugs']},
+      {title:'Teamleitung', channels:['teamleitung-chat','teamleitung-meeting']},
+      {title:'Sr.Admin', channels:['sr-admin-chat','sr-admin-reports']},
+      {title:'Admin', channels:['admin-chat','admin-support']},
+      {title:'Content', channels:['content-chat','content-projekte']},
+      {title:'Mod', channels:['mod-chat','mod-hilfe']},
+      {title:'Supporter', channels:['supporter-chat','supporter-fragen']},
+      {title:'Content-Creator', channels:['creator-chat','creator-showcase']},
+    ];
+
+    function renderSidebar(){
+      nav.innerHTML='';
+      SECTIONS.forEach((sec,si)=>{
+        const sh = document.createElement('div'); sh.className='section-header fade';
+        const title = document.createElement('div'); title.className='section-title'; title.innerHTML=`<strong>${sec.title}</strong>`;
+        const caret = document.createElement('div'); caret.textContent='+';
+        sh.appendChild(title); sh.appendChild(caret);
+
+        const chWrap = document.createElement('div'); chWrap.className='channels'; chWrap.style.display='none';
+        sec.channels.forEach(ch=>{
+          const c = document.createElement('div'); c.className='channel'; c.textContent='# '+ch; c.dataset.channel=ch;
+          c.onclick = ()=>openChannel(ch);
+          chWrap.appendChild(c);
+        })
+
+        sh.onclick = ()=>{
+          document.querySelectorAll('.channels').forEach(x=>{ if(x!==chWrap) x.style.display='none' });
+          chWrap.style.display = chWrap.style.display==='none'?'flex':'none';
+        }
+
+        nav.appendChild(sh); nav.appendChild(chWrap);
+      })
+    }
+
+    /* ------------------
+       Members render, search, filter, sort
+       ------------------ */
+    function renderMembers(){
+      membersContainer.innerHTML='';
+      const q = searchInput.value.trim().toLowerCase();
+      const roleFilter = filterRole.value;
+      const sort = sortBy.value;
+
+      let list = members.slice();
+      if(roleFilter) list = list.filter(m=>m.role===roleFilter);
+      if(q) list = list.filter(m=>m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q));
+      if(sort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+      if(sort==='role') list.sort((a,b)=>a.role.localeCompare(b.role));
+
+      list.forEach((m,i)=>{
+        const el = document.createElement('div'); el.className='member card fade';
+        el.style.borderLeftColor = ROLE_COLORS[m.role] || 'var(--accent1)';
+        el.innerHTML = `
+          <div class="meta">
+            <div class="avatar">${(m.name||'?').slice(1,2) || m.name.charAt(0)}</div>
+            <div>
+              <div style="font-weight:700">${m.name}</div>
+              <div style="color:var(--muted)">${m.role}</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn ghost" onclick="editMember(${i}, event)">Bearbeiten</button>
+            <button class="btn ghost" onclick="confirmDelete(${i}, event)">Entfernen</button>
+          </div>
+        `;
+        membersContainer.appendChild(el);
+      });
+
+      renderStats();
+      saveMembers();
+    }
+
+    function renderStats(){
+      document.getElementById('statCount').textContent = members.length;
+      const uniqueRoles = new Set(members.map(m=>m.role));
+      document.getElementById('statRoles').textContent = uniqueRoles.size;
+    }
+
+    /* ------------------
+       Add / Edit / Delete
+       ------------------ */
+    function openAddModal(){ editingIndex=null; modalTitle.textContent='Mitglied hinzufügen'; mName.value=''; mRole.value=Object.keys(ROLE_COLORS)[0]; showModal(); }
+    function showModal(){ modalBackdrop.style.display='flex' }
+    function hideModal(){ modalBackdrop.style.display='none' }
+
+    function saveMember(){
+      const name = mName.value.trim(); const role = mRole.value;
+      if(!name){ alert('Bitte Namen eingeben'); return }
+      if(editingIndex===null){ members.push({name,role}); }
+      else{ members[editingIndex] = {name,role}; }
+      hideModal(); renderMembers();
+    }
+
+    function editMember(index, ev){ ev?.stopPropagation(); editingIndex=index; modalTitle.textContent='Mitglied bearbeiten'; mName.value=members[index].name; mRole.value=members[index].role; showModal(); }
+    function confirmDelete(index, ev){ ev?.stopPropagation(); if(!confirm('Mitglied entfernen?')) return; members.splice(index,1); renderMembers(); }
+
+    /* ------------------
+       Login / Registration / Rights
+       ------------------ */
+    async function hashPassword(pw){
+      const enc = new TextEncoder().encode(pw);
+      const buf = await crypto.subtle.digest('SHA-256', enc);
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    function findUserByName(name){ const us = loadUsersStore(); return us.find(u=>u.name.toLowerCase()===name.toLowerCase()); }
+
+    async function doRegisterUser(){
+      const name = regName.value.trim();
+      const pw = regPassword.value;
+      const pw2 = regPassword2.value;
+      const key = regOwnerKey.value.trim();
+      const role = regRole.value || 'Member';
+      if(!name || !pw){ alert('Name und Passwort sind erforderlich'); return }
+      if(pw !== pw2){ alert('Passwörter stimmen nicht überein'); return }
+      if(key !== OWNER_KEY){ alert('Ungültiger Owner-Key. Registrieren nur mit Key möglich.'); return }
+      if(findUserByName(name)){ alert('Benutzername bereits vergeben'); return }
+      const hash = await hashPassword(pw);
+      const us = loadUsersStore();
+      us.push({name,hash,role});
+      saveUsersStore(us);
+      alert('Registrierung erfolgreich. Du kannst dich jetzt einloggen.');
+      registerBackdrop.style.display='none';
+    }
+
+    async function doLoginUser(){
+      const name = loginName.value.trim() || '@Guest';
+      const pw = loginPassword.value || '';
+      const found = findUserByName(name);
+      if(!found){ alert('Benutzer nicht gefunden. Bitte registrieren.'); return }
+      const hash = await hashPassword(pw);
+      if(hash !== found.hash){ alert('Falsches Passwort'); return }
+      onLoginSuccess({name:found.name,role:found.role});
+      loginBackdrop.style.display='none';
+    }
+
+    function onLoginSuccess(user){ currentUser=user; saveUser(user); loginBackdrop.style.display='none'; registerBackdrop.style.display='none';
+      document.getElementById('userBadge').innerHTML = `<span class="badge" style="background:${ROLE_COLORS[user.role]||'#999'};color:#000">${user.name} • ${user.role}</span>`;
+      applyAccessControl();
+    }
+
+    function applyAccessControl(){
+      const isAdmin = ['Owner','Co-Owner','Sr.Admin','Admin'].includes(currentUser.role);
+      document.getElementById('page-admin').style.display = isAdmin? 'block':'none';
+      if(!isAdmin) document.getElementById('page-admin').classList.remove('active');
+
+      const canAnn = ['Owner','Co-Owner'].includes(currentUser.role);
+      document.getElementById('postAnn').disabled = !canAnn;
+    }
+
+    /* ------------------
+       Channel -> Pages
+       ------------------ */
+    function openChannel(channel){
+      const map = {
+        'team-chat':'page-chat', 'team-liste':'page-team','ankündigung':'page-announce',
+        'owner-chat':'page-chat','admin-support':'page-admin','creator-showcase':'page-dashboard'
+      };
+      const target = map[channel] || 'page-chat';
+      pages.forEach(p=>p.classList.remove('active'));
+      document.getElementById(target).classList.add('active');
+      if(target==='page-chat') document.getElementById('chatTitle').textContent = channel;
+      sidebarEl.classList.remove('open');
+    }
+
+    /* ------------------
+       Chat (very simple local)
+       ------------------ */
+    let messages = [];
+    function sendMessage(){ const t=document.getElementById('chatInput').value.trim(); if(!t) return; messages.push({from:currentUser?currentUser.name:'@Guest',text:t,ts:Date.now()}); renderMessages(); document.getElementById('chatInput').value=''; }
+    function renderMessages(){ const el=document.getElementById('messages'); el.innerHTML=''; messages.forEach(m=>{ const d=document.createElement('div'); d.className='msg '+(m.from===currentUser.name?'me':''); d.textContent = m.from+': '+m.text; el.appendChild(d); }); el.scrollTop = el.scrollHeight; }
+
+    /* ------------------
+       Announcements persistent
+       ------------------ */
+    function loadAnnouncements(){ const raw = localStorage.getItem('teamPortalAnn'); return raw?JSON.parse(raw):[] }
+    function saveAnnouncements(list){ localStorage.setItem('teamPortalAnn', JSON.stringify(list)) }
+    function renderAnnouncements(){ const list = loadAnnouncements(); const el=document.getElementById('annList'); el.innerHTML=''; list.forEach(a=>{ const d=document.createElement('div'); d.className='card'; d.style.marginBottom='8px'; d.textContent=a; el.appendChild(d); }); }
+
+    /* ------------------
+       Theme / Sidebar / Mobile
+       ------------------ */
+    function applyTheme(t){ if(t==='light'){ document.body.classList.add('light'); themeToggle.textContent='☀️' } else { document.body.classList.remove('light'); themeToggle.textContent='🌙' } localStorage.setItem('teamPortalTheme', t) }
+    function loadTheme(){ return localStorage.getItem('teamPortalTheme') || 'dark' }
+
+    /* ------------------
+       Export / Import
+       ------------------ */
+    function exportJSON(){ const data = JSON.stringify(members, null, 2); const blob = new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='team_members.json'; a.click(); URL.revokeObjectURL(url); }
+    function importJSON(file){ const reader=new FileReader(); reader.onload=e=>{ try{ members = JSON.parse(e.target.result); saveMembers(); renderMembers(); alert('Import erfolgreich'); }catch(err){ alert('Fehler beim Import'); } }; reader.readAsText(file); }
+
+    /* ------------------
+       Handlers
+       ------------------ */
+    function attachHandlers(){
+      searchInput.addEventListener('input', ()=>renderMembers());
+      filterRole.addEventListener('change', ()=>renderMembers());
+      sortBy.addEventListener('change', ()=>renderMembers());
+
+      openAdd.addEventListener('click', openAddModal);
+      floatingAdd.addEventListener('click', openAddModal);
+      saveMemberBtn.addEventListener('click', saveMember);
+      cancelModal.addEventListener('click', hideModal);
+      document.getElementById('modalBackdrop').addEventListener('click', (e)=>{ if(e.target===modalBackdrop) hideModal(); });
+
+      doLogin.addEventListener('click', doLoginUser);
+      openRegister.addEventListener('click', ()=>{ registerBackdrop.style.display='flex'; loginBackdrop.style.display='none'; });
+
+      doRegister.addEventListener('click', doRegisterUser);
+      cancelRegister.addEventListener('click', ()=>{ registerBackdrop.style.display='none'; loginBackdrop.style.display='flex'; });
+
+      themeToggle.addEventListener('click', ()=>{ const cur = document.body.classList.contains('light')? 'light':'dark'; applyTheme(cur==='light'?'dark':'light') });
+
+      compactBtn.addEventListener('click', ()=>{ sidebarEl.classList.toggle('compact') });
+      openSidebar.addEventListener('click', ()=>{ sidebarEl.classList.toggle('open') });
+      logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem(USER_KEY); location.reload(); });
+
+      document.getElementById('sendMsg').addEventListener('click', sendMessage);
+      document.getElementById('postAnn').addEventListener('click', ()=>{ const t=document.getElementById('announceText').value.trim(); if(!t) return; const arr = loadAnnouncements(); arr.unshift('['+new Date().toLocaleString()+'] '+t); saveAnnouncements(arr); renderAnnouncements(); document.getElementById('announceText').value=''; });
+      document.getElementById('clearAnn').addEventListener('click', ()=>{ if(confirm('Ankündigungen löschen?')){ saveAnnouncements([]); renderAnnouncements(); } });
+
+      document.getElementById('exportBtn').addEventListener('click', exportJSON);
+      document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
+      document.getElementById('importFile').addEventListener('change', (e)=>importJSON(e.target.files[0]));
+
+      // close login on backdrop click (do nothing else)
+      loginBackdrop.addEventListener('click', (e)=>{ if(e.target===loginBackdrop){} });
+
+      document.addEventListener('keydown', (e)=>{ if(e.key==='k' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); document.getElementById('searchInput').focus(); } });
+    }
+
+    /* ------------------
+       helpers used in HTML onclick (global)
+       ------------------ */
+    window.editMember = function(i, ev){ ev?.stopPropagation(); editMember(i); }
+    window.confirmDelete = function(i, ev){ ev?.stopPropagation(); confirmDelete(i); }
+
+    /* ------------------
+       init render
+       ------------------ */
+    renderAnnouncements();
+    init();
+  </script>
+</body>
+</html>
