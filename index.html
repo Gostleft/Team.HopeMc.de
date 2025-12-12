@@ -236,70 +236,8 @@
                     </div>
                     <button type="button" class="btn" onclick="checkAdminPasswordEvents()">Einloggen</button>
                 </div>
-// Admin-Passwort (ÄNDERE DIESES PASSWORT!)
-        const ADMIN_PASSWORD = "hm2025hm";
-        let isAdminLoggedIn = false;
-        let isAdminLoggedInEvents = false;
-
-        // Admin-Login prüfen (Team)
-        function checkAdminPassword() {
-            const password = document.getElementById('adminPassword').value;
-            if (password === ADMIN_PASSWORD) {
-                isAdminLoggedIn = true;
-                document.getElementById('adminLogin').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-                localStorage.setItem('hopemc_admin_logged_in', 'true');
-                alert('✅ Erfolgreich eingeloggt!');
-                // Teammitglieder neu laden um Löschen-Buttons anzuzeigen
-                document.getElementById('teamGrid').innerHTML = '';
-                teamMembers.forEach(member => addMemberToGrid(member, false));
-            } else {
-                alert('❌ Falsches Passwort!');
-            }
-        }
-// Admin ausloggen (Events)
-        function logoutAdminEvents() {
-            isAdminLoggedInEvents = false;
-            document.getElementById('adminLoginEvents').style.display = 'block';
-            document.getElementById('adminPanelEvents').style.display = 'none';
-            localStorage.removeItem('hopemc_admin_logged_in_events');
-            document.getElementById('adminPasswordEvents').value = '';
-            // Events neu laden um Löschen-Buttons zu verstecken
-            document.getElementById('eventsGrid').innerHTML = '';
-            events.forEach(event => addEventToGrid(event, false));
-        }
-
-        // Beim Laden prüfen ob Admin eingeloggt ist
-        function checkAdminStatus() {
-            const loggedIn = localStorage.getItem('hopemc_admin_logged_in');
-            if (loggedIn === 'true') {
-                isAdminLoggedIn = true;
-                document.getElementById('adminLogin').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-            }
-const loggedInEvents = localStorage.getItem('hopemc_admin_logged_in_events');
-            if (loggedInEvents === 'true') {
-                isAdminLoggedInEvents = true;
-                document.getElementById('adminLoginEvents').style.display = 'none';
-                document.getElementById('adminPanelEvents').style.display = 'block';
-            }
-        }
-
-        // Teammitglieder verwalten mit shared storage
-        let teamMembers = [];
-
-        // Beim Laden der Seite gespeicherte Teammitglieder laden
-        async function loadTeamMembers() {
-            try {
-                const result = await window.storage.get('hopemc_team_members', true);
-                if (result && result.value) {
-                    teamMembers = JSON.parse(result.value);
-                    teamMembers.forEach(member => addMemberToGrid(member, false));
-                }
-            } catch (error) {
-                console.log('Keine gespeicherten Teammitglieder gefunden');
-            }
-        }
+  
+  
     /* =====================
        Datenmodel + Defaults
        ===================== */
