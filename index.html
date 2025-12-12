@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Team.HopeMC.DE - Team Portal (vollständig)</title>
+  <title>Minecraft Server Projekt - Team Portal (vollständig)</title>
   <meta name="description" content="Team-Portal mit LocalStorage, Login/Rollen, Sidebar, Suche, Sortierung, Dark/Light, Chat, Admin-Bereich" />
   <style>
     /* ---------------------------
@@ -109,7 +109,7 @@
     <div class="brand">
       <div class="logo">MP</div>
       <div class="title">
-        <h1 style="font-size:14px;margin:0">Team.HopeMC.de</h1>
+        <h1 style="font-size:14px;margin:0">Minecraft Projekt</h1>
         <div style="font-size:12px;color:var(--muted)">Team Portal</div>
       </div>
     </div>
@@ -226,18 +226,20 @@
   <button class="floating primary" id="floatingAdd">+</button>
 
   <!-- Simple Login -->
- <!-- Login-Bereich für Admin (am Ende) -->
-                <div id="adminLoginEvents" class="add-member-form" style="margin-top: 40px;">
-                    <h3 style="color: #8a2be2; margin-bottom: 20px;">🔒 Admin-Bereich</h3>
-                    <p style="color: #ccc; margin-bottom: 15px;">Nur für Administratoren: Gib das Passwort ein, um Events zu verwalten.</p>
-                    <div class="form-group">
-                        <label>Passwort:</label>
-                        <input type="password" id="adminPasswordEvents" placeholder="Admin-Passwort eingeben" onkeypress="if(event.key==='Enter') checkAdminPasswordEvents()">
-                    </div>
-                    <button type="button" class="btn" onclick="checkAdminPasswordEvents()">Einloggen</button>
-                </div>
-  
-  
+  <div class="modal-backdrop" id="loginBackdrop" style="display:flex;z-index:90">
+    <div class="modal card">
+      <h3>Login</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <input id="loginName" placeholder="Benutzername" />
+        <select id="loginRole"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn primary" id="doLogin">Einloggen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
     /* =====================
        Datenmodel + Defaults
        ===================== */
@@ -248,11 +250,11 @@
     };
 
     const DEFAULT_MEMBERS = [
-      {name:'𝐆𝐨𝐬𝐭𝐥𝐞𝐟𝐭',role:'Owner'},
-      {name:'Mr_Wuff',role:'Developer+'},
-      {name:'Max',role:'Developer+'},
-      {name:'𝐉𝐨𝐧𝐨𝐱',role:'Jr.Admin'},
-      {name:'Shotti',role:'Mod'}
+      {name:'@𝐆𝐨𝐬𝐭𝐥𝐞𝐟𝐭',role:'Owner'},
+      {name:'@M…',role:'Co-Owner'},
+      {name:'@Mr_Wuff',role:'Developer+'},
+      {name:'@𝐉𝐨𝐧𝐨𝐱',role:'Jr.Admin'},
+      {name:'@Shotti',role:'Mod'}
     ];
 
     const STORAGE_KEY = 'teamPortalMembers_v1';
@@ -409,7 +411,7 @@
             </div>
           </div>
           <div class="actions">
-            
+            <button class="btn ghost" onclick="editMember(${i}, event)">Bearbeiten</button>
             <button class="btn ghost" onclick="confirmDelete(${i}, event)">Entfernen</button>
           </div>
         `;
@@ -441,7 +443,7 @@
       hideModal(); renderMembers();
     }
 
-    
+    function editMember(index, ev){ ev?.stopPropagation(); editingIndex=index; modalTitle.textContent='Mitglied bearbeiten'; mName.value=members[index].name; mRole.value=members[index].role; showModal(); }
     function confirmDelete(index, ev){ ev?.stopPropagation(); if(!confirm('Mitglied entfernen?')) return; members.splice(index,1); renderMembers(); }
 
     /* ------------------
