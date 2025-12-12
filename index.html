@@ -411,7 +411,7 @@
             </div>
           </div>
           <div class="actions">
-            <button class="btn ghost" onclick="editMember(${i}, event)">Bearbeiten</button>
+            
             <button class="btn ghost" onclick="confirmDelete(${i}, event)">Entfernen</button>
           </div>
         `;
@@ -443,7 +443,7 @@
       hideModal(); renderMembers();
     }
 
-    function editMember(index, ev){ ev?.stopPropagation(); editingIndex=index; modalTitle.textContent='Mitglied bearbeiten'; mName.value=members[index].name; mRole.value=members[index].role; showModal(); }
+    
     function confirmDelete(index, ev){ ev?.stopPropagation(); if(!confirm('Mitglied entfernen?')) return; members.splice(index,1); renderMembers(); }
 
     /* ------------------
