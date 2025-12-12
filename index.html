@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Minecraft Server Projekt - Team Portal (vollständig)</title>
-  <meta name="description" content="Team-Portal mit LocalStorage, Login/Rollen, Sidebar, Suche, Sortierung, Dark/Light, Chat, Admin-Bereich" />
+  <meta name="description" content="Team-Portal mit LocalStorage, Login/Rollen, Sidebar, Suche, Sortierung, Dark/Light, Chat, Admin-Bereich, Registrierung mit Owner-Key" />
   <style>
     /* ---------------------------
        Grundstyles (Dark-first)
@@ -114,9 +114,7 @@
       </div>
     </div>
 
-    <div class="nav" id="nav">
-      <!-- Sections will be rendered by JS (accordion) -->
-    </div>
+    <div class="nav" id="nav"></div>
 
     <div style="display:flex;gap:10px">
       <button class="btn ghost" id="compactBtn" title="Sidebar ein-/ausklappen">⇆</button>
@@ -225,17 +223,38 @@
   <!-- Floating quick add -->
   <button class="floating primary" id="floatingAdd">+</button>
 
-  <!-- Simple Login -->
+  <!-- Login / Register Modal -->
   <div class="modal-backdrop" id="loginBackdrop" style="display:flex;z-index:90">
     <div class="modal card">
-      <h3>Login</h3>
+      <h3 id="loginTitle">Login / Registrierung</h3>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
         <input id="loginName" placeholder="Benutzername" />
+        <input id="loginPassword" type="password" placeholder="Passwort" />
         <select id="loginRole"></select>
         <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn ghost" id="openRegister">Registrieren</button>
           <button class="btn primary" id="doLogin">Einloggen</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal-backdrop" id="registerBackdrop">
+    <div class="modal card">
+      <h3>Registrierung</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <input id="regName" placeholder="Gewünschter Benutzername" />
+        <input id="regPassword" type="password" placeholder="Passwort" />
+        <input id="regPassword2" type="password" placeholder="Passwort wiederholen" />
+        <input id="regOwnerKey" placeholder="Owner-Key (vom Owner erhalten)" />
+        <select id="regRole"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn ghost" id="cancelRegister">Abbrechen</button>
+          <button class="btn primary" id="doRegister">Registrieren</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;color:var(--muted);font-size:13px">Hinweis: Zur Registrierung wird ein Owner-Key benötigt, den der Owner ausgibt. Ohne Key ist keine Registrierung möglich.</div>
     </div>
   </div>
 
@@ -243,10 +262,13 @@
     /* =====================
        Datenmodel + Defaults
        ===================== */
+    const OWNER_KEY = 'H8834P45t2'; // vom Nutzer vorgegeben
+
     const ROLE_COLORS = {
       'Owner':'#ffbf00','Co-Owner':'#a855f7','Manager':'#06b6d4','Developer+':'#10b981','Developer':'#22c55e','Teamleitung':'#f97316',
       'Sr.Admin':'#ef4444','Admin':'#fb7185','Jr.Admin':'#ef9a9a','Content+':'#8b5cf6','Content':'#60a5fa','Jr.Content':'#93c5fd',
-      'Sr.Mod':'#f43f5e','Mod':'#fb923c','Jr.Mod':'#fbbf24','Sr.Supporter':'#34d399','Supporter':'#7c3aed','Jr.Supporter':'#a78bfa','Content-Creator':'#ec4899'
+      'Sr.Mod':'#f43f5e','Mod':'#fb923c','Jr.Mod':'#fbbf24','Sr.Supporter':'#34d399','Supporter':'#7c3aed','Jr.Supporter':'#a78bfa','Content-Creator':'#ec4899',
+      'Member':'#9ca3af'
     };
 
     const DEFAULT_MEMBERS = [
@@ -260,6 +282,7 @@
 
     const STORAGE_KEY = 'teamPortalMembers_v1';
     const USER_KEY = 'teamPortalUser_v1';
+    const USERS_STORE = 'teamPortalUsers_v1'; // registered users (with password hash)
 
     /* ===============
        UI References
@@ -280,8 +303,19 @@
 
     const loginBackdrop = document.getElementById('loginBackdrop');
     const loginName = document.getElementById('loginName');
+    const loginPassword = document.getElementById('loginPassword');
     const loginRole = document.getElementById('loginRole');
     const doLogin = document.getElementById('doLogin');
+    const openRegister = document.getElementById('openRegister');
+
+    const registerBackdrop = document.getElementById('registerBackdrop');
+    const regName = document.getElementById('regName');
+    const regPassword = document.getElementById('regPassword');
+    const regPassword2 = document.getElementById('regPassword2');
+    const regOwnerKey = document.getElementById('regOwnerKey');
+    const regRole = document.getElementById('regRole');
+    const doRegister = document.getElementById('doRegister');
+    const cancelRegister = document.getElementById('cancelRegister');
 
     const themeToggle = document.getElementById('themeToggle');
     const compactBtn = document.getElementById('compactBtn');
@@ -310,7 +344,7 @@
       attachHandlers();
       renderStats();
       applyTheme(loadTheme());
-      // Show login if no user
+      // Show login if no user logged in
       if(!currentUser){ loginBackdrop.style.display='flex' } else { onLoginSuccess(currentUser) }
     }
 
@@ -322,6 +356,9 @@
     function saveUser(u){ localStorage.setItem(USER_KEY, JSON.stringify(u)) }
     function loadUser(){ try{ const r=localStorage.getItem(USER_KEY); return r?JSON.parse(r):null }catch(e){return null} }
 
+    function saveUsersStore(us){ localStorage.setItem(USERS_STORE, JSON.stringify(us)) }
+    function loadUsersStore(){ const r = localStorage.getItem(USERS_STORE); return r?JSON.parse(r):[] }
+
     /* ------------------
        Roles + Filters
        ------------------ */
@@ -331,13 +368,13 @@
         const opt = document.createElement('option'); opt.value=r; opt.textContent=r; mRole.appendChild(opt);
         const opt2 = document.createElement('option'); opt2.value=r; opt2.textContent=r; filterRole.appendChild(opt2);
         const opt3 = document.createElement('option'); opt3.value=r; opt3.textContent=r; loginRole.appendChild(opt3);
+        const opt4 = document.createElement('option'); opt4.value=r; opt4.textContent=r; regRole.appendChild(opt4);
       })
+      // For security UX: registration should not allow creating Owner or Co-Owner directly
+      try{ regRole.querySelector('option[value="Owner"]').disabled=true; regRole.querySelector('option[value="Co-Owner"]').disabled=true }catch(e){}
     }
 
-    function populateFilters(){
-      // ensure 'Alle Rollen' first
-      filterRole.value='';
-    }
+    function populateFilters(){ filterRole.value=''; }
 
     /* ------------------
        Render Sidebar (Accordion: only one open)
@@ -374,10 +411,7 @@
         })
 
         sh.onclick = ()=>{
-          // close all
           document.querySelectorAll('.channels').forEach(x=>{ if(x!==chWrap) x.style.display='none' });
-          document.querySelectorAll('.section-header .caret')?.forEach(x=>{});
-          // toggle
           chWrap.style.display = chWrap.style.display==='none'?'flex':'none';
         }
 
@@ -412,6 +446,7 @@
             </div>
           </div>
           <div class="actions">
+            <button class="btn ghost" onclick="editMember(${i}, event)">Bearbeiten</button>
             <button class="btn ghost" onclick="confirmDelete(${i}, event)">Entfernen</button>
           </div>
         `;
@@ -447,9 +482,46 @@
     function confirmDelete(index, ev){ ev?.stopPropagation(); if(!confirm('Mitglied entfernen?')) return; members.splice(index,1); renderMembers(); }
 
     /* ------------------
-       Login / Rights
+       Login / Registration / Rights
        ------------------ */
-    function onLoginSuccess(user){ currentUser=user; saveUser(user); loginBackdrop.style.display='none';
+    async function hashPassword(pw){
+      const enc = new TextEncoder().encode(pw);
+      const buf = await crypto.subtle.digest('SHA-256', enc);
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    function findUserByName(name){ const us = loadUsersStore(); return us.find(u=>u.name.toLowerCase()===name.toLowerCase()); }
+
+    async function doRegisterUser(){
+      const name = regName.value.trim();
+      const pw = regPassword.value;
+      const pw2 = regPassword2.value;
+      const key = regOwnerKey.value.trim();
+      const role = regRole.value || 'Member';
+      if(!name || !pw){ alert('Name und Passwort sind erforderlich'); return }
+      if(pw !== pw2){ alert('Passwörter stimmen nicht überein'); return }
+      if(key !== OWNER_KEY){ alert('Ungültiger Owner-Key. Registrieren nur mit Key möglich.'); return }
+      if(findUserByName(name)){ alert('Benutzername bereits vergeben'); return }
+      const hash = await hashPassword(pw);
+      const us = loadUsersStore();
+      us.push({name,hash,role});
+      saveUsersStore(us);
+      alert('Registrierung erfolgreich. Du kannst dich jetzt einloggen.');
+      registerBackdrop.style.display='none';
+    }
+
+    async function doLoginUser(){
+      const name = loginName.value.trim() || '@Guest';
+      const pw = loginPassword.value || '';
+      const found = findUserByName(name);
+      if(!found){ alert('Benutzer nicht gefunden. Bitte registrieren.'); return }
+      const hash = await hashPassword(pw);
+      if(hash !== found.hash){ alert('Falsches Passwort'); return }
+      onLoginSuccess({name:found.name,role:found.role});
+      loginBackdrop.style.display='none';
+    }
+
+    function onLoginSuccess(user){ currentUser=user; saveUser(user); loginBackdrop.style.display='none'; registerBackdrop.style.display='none';
       document.getElementById('userBadge').innerHTML = `<span class="badge" style="background:${ROLE_COLORS[user.role]||'#999'};color:#000">${user.name} • ${user.role}</span>`;
       applyAccessControl();
     }
@@ -459,19 +531,14 @@
       document.getElementById('page-admin').style.display = isAdmin? 'block':'none';
       if(!isAdmin) document.getElementById('page-admin').classList.remove('active');
 
-      // Announce: only owners + co-owner can post
       const canAnn = ['Owner','Co-Owner'].includes(currentUser.role);
       document.getElementById('postAnn').disabled = !canAnn;
-
-      // Sidebar visibility example: only Owner sees Owner section
-      // (we leave it simple for demo)
     }
 
     /* ------------------
        Channel -> Pages
        ------------------ */
     function openChannel(channel){
-      // map channel names to pages
       const map = {
         'team-chat':'page-chat', 'team-liste':'page-team','ankündigung':'page-announce',
         'owner-chat':'page-chat','admin-support':'page-admin','creator-showcase':'page-dashboard'
@@ -479,7 +546,6 @@
       const target = map[channel] || 'page-chat';
       pages.forEach(p=>p.classList.remove('active'));
       document.getElementById(target).classList.add('active');
-      // set chat title
       if(target==='page-chat') document.getElementById('chatTitle').textContent = channel;
       sidebarEl.classList.remove('open');
     }
@@ -524,7 +590,11 @@
       cancelModal.addEventListener('click', hideModal);
       document.getElementById('modalBackdrop').addEventListener('click', (e)=>{ if(e.target===modalBackdrop) hideModal(); });
 
-      doLogin.addEventListener('click', ()=>{ const nm=loginName.value.trim()||'@Guest'; const rl=loginRole.value; onLoginSuccess({name:nm,role:rl}) });
+      doLogin.addEventListener('click', doLoginUser);
+      openRegister.addEventListener('click', ()=>{ registerBackdrop.style.display='flex'; loginBackdrop.style.display='none'; });
+
+      doRegister.addEventListener('click', doRegisterUser);
+      cancelRegister.addEventListener('click', ()=>{ registerBackdrop.style.display='none'; loginBackdrop.style.display='flex'; });
 
       themeToggle.addEventListener('click', ()=>{ const cur = document.body.classList.contains('light')? 'light':'dark'; applyTheme(cur==='light'?'dark':'light') });
 
@@ -540,10 +610,9 @@
       document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
       document.getElementById('importFile').addEventListener('change', (e)=>importJSON(e.target.files[0]));
 
-      // close login on backdrop click
+      // close login on backdrop click (do nothing else)
       loginBackdrop.addEventListener('click', (e)=>{ if(e.target===loginBackdrop){} });
 
-      // keyboard shortcuts
       document.addEventListener('keydown', (e)=>{ if(e.key==='k' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); document.getElementById('searchInput').focus(); } });
     }
 
@@ -561,3 +630,4 @@
   </script>
 </body>
 </html>
+
