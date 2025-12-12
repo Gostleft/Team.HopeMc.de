@@ -226,20 +226,80 @@
   <button class="floating primary" id="floatingAdd">+</button>
 
   <!-- Simple Login -->
-  <div class="modal-backdrop" id="loginBackdrop" style="display:flex;z-index:90">
-    <div class="modal card">
-      <h3>Login</h3>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-        <input id="loginName" placeholder="Benutzername" />
-        <select id="loginRole"></select>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button class="btn primary" id="doLogin">Einloggen</button>
-        </div>
-      </div>
-    </div>
-  </div>
+ <!-- Login-Bereich für Admin (am Ende) -->
+                <div id="adminLoginEvents" class="add-member-form" style="margin-top: 40px;">
+                    <h3 style="color: #8a2be2; margin-bottom: 20px;">🔒 Admin-Bereich</h3>
+                    <p style="color: #ccc; margin-bottom: 15px;">Nur für Administratoren: Gib das Passwort ein, um Events zu verwalten.</p>
+                    <div class="form-group">
+                        <label>Passwort:</label>
+                        <input type="password" id="adminPasswordEvents" placeholder="Admin-Passwort eingeben" onkeypress="if(event.key==='Enter') checkAdminPasswordEvents()">
+                    </div>
+                    <button type="button" class="btn" onclick="checkAdminPasswordEvents()">Einloggen</button>
+                </div>
+// Admin-Passwort (ÄNDERE DIESES PASSWORT!)
+        const ADMIN_PASSWORD = "hm2025hm";
+        let isAdminLoggedIn = false;
+        let isAdminLoggedInEvents = false;
 
-  <script>
+        // Admin-Login prüfen (Team)
+        function checkAdminPassword() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                isAdminLoggedIn = true;
+                document.getElementById('adminLogin').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                localStorage.setItem('hopemc_admin_logged_in', 'true');
+                alert('✅ Erfolgreich eingeloggt!');
+                // Teammitglieder neu laden um Löschen-Buttons anzuzeigen
+                document.getElementById('teamGrid').innerHTML = '';
+                teamMembers.forEach(member => addMemberToGrid(member, false));
+            } else {
+                alert('❌ Falsches Passwort!');
+            }
+        }
+// Admin ausloggen (Events)
+        function logoutAdminEvents() {
+            isAdminLoggedInEvents = false;
+            document.getElementById('adminLoginEvents').style.display = 'block';
+            document.getElementById('adminPanelEvents').style.display = 'none';
+            localStorage.removeItem('hopemc_admin_logged_in_events');
+            document.getElementById('adminPasswordEvents').value = '';
+            // Events neu laden um Löschen-Buttons zu verstecken
+            document.getElementById('eventsGrid').innerHTML = '';
+            events.forEach(event => addEventToGrid(event, false));
+        }
+
+        // Beim Laden prüfen ob Admin eingeloggt ist
+        function checkAdminStatus() {
+            const loggedIn = localStorage.getItem('hopemc_admin_logged_in');
+            if (loggedIn === 'true') {
+                isAdminLoggedIn = true;
+                document.getElementById('adminLogin').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+const loggedInEvents = localStorage.getItem('hopemc_admin_logged_in_events');
+            if (loggedInEvents === 'true') {
+                isAdminLoggedInEvents = true;
+                document.getElementById('adminLoginEvents').style.display = 'none';
+                document.getElementById('adminPanelEvents').style.display = 'block';
+            }
+        }
+
+        // Teammitglieder verwalten mit shared storage
+        let teamMembers = [];
+
+        // Beim Laden der Seite gespeicherte Teammitglieder laden
+        async function loadTeamMembers() {
+            try {
+                const result = await window.storage.get('hopemc_team_members', true);
+                if (result && result.value) {
+                    teamMembers = JSON.parse(result.value);
+                    teamMembers.forEach(member => addMemberToGrid(member, false));
+                }
+            } catch (error) {
+                console.log('Keine gespeicherten Teammitglieder gefunden');
+            }
+        }
     /* =====================
        Datenmodel + Defaults
        ===================== */
