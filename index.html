@@ -558,6 +558,181 @@
        ------------------ */
     renderAnnouncements();
     init();
-  </script>
+  // --- LocalStorage Speichern & Laden ---
+function saveMembers() {
+    const cards = [...document.querySelectorAll('.member-card')].map(card => {
+        return {
+            name: card.querySelector('.member-name').textContent,
+            role: card.querySelector('.member-role').textContent
+        };
+    });
+    localStorage.setItem('teamMembers', JSON.stringify(cards));
+}
+function loadMembers() {
+    const saved = JSON.parse(localStorage.getItem('teamMembers') || '[]');
+    const list = document.getElementById('membersList');
+    saved.forEach(m => createMemberCard(m.name, m.role));
+}
+// override addMember to include save
+function createMemberCard(name, role) {
+    const membersList = document.getElementById('membersList');
+    const memberCard = document.createElement('div');
+    memberCard.className = 'member-card';
+    memberCard.innerHTML = `
+        <div class="member-info">
+            <span class="member-name">${name}</span>
+            <span class="member-role">${role}</span>
+        </div>
+        <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+        <button class="delete-btn" style="margin-left:10px;background:rgba(59,130,246,0.2);border-color:rgba(59,130,246,0.5);color:#3b82f6;" onclick="editMember(this)">Bearbeiten</button>
+    `;
+    membersList.appendChild(memberCard);
+}
+function addMember() {
+    const name = document.getElementById('memberName').value;
+    const role = document.getElementById('memberRole').value;
+    if (!name.trim()) return alert('Bitte Namen eingeben');
+    createMemberCard(name, role);
+    saveMembers();
+}
+// --- Mitglied bearbeiten ---
+function editMember(btn) {
+    const card = btn.parentElement;
+    const nameEl = card.querySelector('.member-name');
+    const roleEl = card.querySelector('.member-role');
+    const newName = prompt('Neuen Namen eingeben:', nameEl.textContent);
+    if (!newName) return;
+    const newRole = prompt('Neue Rolle eingeben:', roleEl.textContent);
+    if (!newRole) return;
+    nameEl.textContent = newName;
+    roleEl.textContent = newRole;
+    saveMembers();
+}
+// override delete
+function deleteMember(btn) {
+    btn.parentElement.remove();
+    saveMembers();
+}
+// --- Suche & Filter ---
+function searchMembers() {
+    const query = document.getElementById('searchMembers').value.toLowerCase();
+    document.querySelectorAll('.member-card').forEach(card => {
+        const name = card.querySelector('.member-name').textContent.toLowerCase();
+        card.style.display = name.includes(query) ? '' : 'none';
+    });
+}
+function filterByRole() {
+    const role = document.getElementById('filterRole').value;
+    document.querySelectorAll('.member-card').forEach(card => {
+        const r = card.querySelector('.member-role').textContent;
+        card.style.display = (role === 'Alle' || r === role) ? '' : 'none';
+    });
+}
+// load members on start
+window.addEventListener('DOMContentLoaded', loadMembers);
+// --- Sortierung nach Rollen & Namen ---
+function sortMembersBy(field) {
+    const list = document.getElementById('membersList');
+    const cards = Array.from(list.children);
+    cards.sort((a,b)=>{
+        const A = a.querySelector(`.member-${field}`).textContent.toLowerCase();
+        const B = b.querySelector(`.member-${field}`).textContent.toLowerCase();
+        return A.localeCompare(B);
+    });
+    list.innerHTML = '';
+    cards.forEach(c=>list.appendChild(c));
+    saveMembers();
+}
+
+// --- Automatische Rollenfarben ---
+const ROLE_COLORS = {
+    'Owner': '#ef4444',
+    'Admin': '#3b82f6',
+    'Moderator': '#22c55e',
+    'Support': '#a855f7',
+    'Mitglied': '#eab308'
+};
+function applyRoleColors() {
+    document.querySelectorAll('.member-card').forEach(card => {
+        const role = card.querySelector('.member-role').textContent;
+        const color = ROLE_COLORS[role];
+        if (color) {
+            card.style.borderColor = color;
+        }
+    });
+}
+
+// --- Dark / Light Mode ---
+function toggleTheme() {
+    const root = document.documentElement;
+    const mode = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', mode);
+    localStorage.setItem('theme', mode);
+}
+(function initTheme(){
+    const saved = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+})();
+
+// --- Dashboard (Statistiken) ---
+function updateDashboard() {
+    const cards = document.querySelectorAll('.member-card');
+    const stats = {
+        total: cards.length,
+        roles: {}
+    };
+    cards.forEach(c=>{
+        const r = c.querySelector('.member-role').textContent;
+        stats.roles[r] = (stats.roles[r]||0)+1;
+    });
+    document.getElementById('statTotal').textContent = stats.total;
+    const box = document.getElementById('statRoles');
+    box.innerHTML = '';
+    Object.entries(stats.roles).forEach(([r,n])=>{
+        const div = document.createElement('div');
+        div.textContent = `${r}: ${n}`;
+        box.appendChild(div);
+    });
+}
+
+// --- Admin-Rechte ---
+function requireAdmin() {
+    const role = localStorage.getItem('loginRole');
+    if (!['Owner','Admin'].includes(role)) {
+        document.getElementById('adminPage').innerHTML = '<p>Keine Berechtigung.</p>';
+    }
+}
+
+// --- Chat Placeholder ---
+function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    const box = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.textContent = localStorage.getItem('loginName') + ': ' + msg;
+    box.appendChild(div);
+    input.value = '';
+}
+
+// --- Accordion Sidebar only one open ---
+document.querySelectorAll('.accordion-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.accordion-content').forEach(sec=>{
+            if(sec!==btn.nextElementSibling) sec.style.display='none';
+        });
+        const next = btn.nextElementSibling;
+        next.style.display = next.style.display==='block' ? 'none' : 'block';
+    });
+});
+
+// After load updates
+window.addEventListener('DOMContentLoaded', ()=>{
+    loadMembers();
+    applyRoleColors();
+    updateDashboard();
+});
+</script>
 </body>
 </html>
