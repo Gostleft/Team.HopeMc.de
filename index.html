@@ -1,2 +1,798 @@
-COde
-rtt
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Projekt - Team Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #1a0933 0%, #2d1b4e 50%, #0a0015 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            text-shadow: 0 0 40px rgba(168, 85, 247, 0.5);
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: #e0d4f7;
+            margin-bottom: 30px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .section {
+            background: rgba(20, 10, 40, 0.6);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: rgba(139, 92, 246, 0.3);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .section-header:hover {
+            background: rgba(139, 92, 246, 0.4);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #e0d4f7;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-icon {
+            font-size: 1.5rem;
+            color: #a855f7;
+            transition: transform 0.3s ease;
+        }
+
+        .section-header.active .toggle-icon {
+            transform: rotate(45deg);
+        }
+
+        .section-content {
+            padding: 20px 25px;
+            display: none;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        .channel {
+            padding: 12px 15px;
+            margin: 5px 0;
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid transparent;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .channel:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-left-color: #a855f7;
+            transform: translateX(5px);
+        }
+
+        .channel-icon {
+            font-size: 1.2rem;
+            color: #9ca3af;
+        }
+
+        .channel-name {
+            color: #e0d4f7;
+            font-size: 1rem;
+        }
+
+        /* Teamliste Styles */
+        .teamlist-container {
+            padding: 20px;
+        }
+
+        .add-member-form {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0d4f7;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(20, 10, 40, 0.6);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            color: #e0d4f7;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #a855f7;
+        }
+
+        .add-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .members-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .member-card {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #a855f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .member-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .member-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e0d4f7;
+        }
+
+        .member-role {
+            font-size: 0.9rem;
+            color: #a855f7;
+        }
+
+        .delete-btn {
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            border-radius: 6px;
+            color: #ef4444;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .section-header {
+                padding: 12px 15px;
+            }
+
+            .section-title {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Minecraft Server Projekt</h1>
+            <p>Team Portal - Organisiert und strukturiert</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Team-Intern Bereich -->
+            <div class="section">
+                <div class="section-header active" onclick="toggleSection(this)">
+                    <span class="section-title">👥 Team-Intern</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content active">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">team-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">team-liste</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">abmelden</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">ankündigung</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Owner Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">👑 Owner</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">owner-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">owner-ankündigungen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Co-Owner Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⭐ Co-Owner</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">co-owner-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">co-owner-planung</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manager Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">💼 Manager</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">manager-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">manager-aufgaben</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Developer+ Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">💻 Developer+</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">dev-plus-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">dev-plus-projekte</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Developer Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">💻 Developer</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">developer-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">developer-bugs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teamleitung Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎯 Teamleitung</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">teamleitung-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">teamleitung-meeting</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sr.Admin Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🛡️ Sr.Admin</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-admin-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-admin-reports</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🛡️ Admin</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">admin-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">admin-support</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jr.Admin Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🛡️ Jr.Admin</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-admin-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-admin-training</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content+ Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎬 Content+</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">content-plus-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">content-plus-ideen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎬 Content</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">content-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">content-projekte</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jr.Content Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎬 Jr.Content</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-content-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-content-lernen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sr.Mod Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⚔️ Sr.Mod</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-mod-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-mod-reports</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mod Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⚔️ Mod</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">mod-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">mod-hilfe</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jr.Mod Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⚔️ Jr.Mod</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-mod-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-mod-training</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sr.Supporter Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🤝 Sr.Supporter</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-supporter-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">sr-supporter-tickets</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supporter Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🤝 Supporter</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">supporter-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">supporter-fragen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jr.Supporter Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🤝 Jr.Supporter</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-supporter-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">jr-supporter-training</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content-Creator Bereich -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎥 Content-Creator</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content">
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">creator-chat</span>
+                    </div>
+                    <div class="channel">
+                        <span class="channel-icon">#</span>
+                        <span class="channel-name">creator-showcase</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teamliste Verwaltung -->
+            <div class="section">
+                <div class="section-header active" onclick="toggleSection(this)">
+                    <span class="section-title">📋 Teamliste Verwaltung</span>
+                    <span class="toggle-icon">+</span>
+                </div>
+                <div class="section-content active">
+                    <div class="teamlist-container">
+                        <div class="add-member-form">
+                            <h3 style="margin-bottom: 20px; color: #a855f7;">Neues Mitglied hinzufügen</h3>
+                            <div class="form-group">
+                                <label>Benutzername</label>
+                                <input type="text" id="memberName" placeholder="@Benutzername">
+                            </div>
+                            <div class="form-group">
+                                <label>Rolle</label>
+                                <select id="memberRole">
+                                    <option value="Owner">👑 Owner</option>
+                                    <option value="Co-Owner">⭐ Co-Owner</option>
+                                    <option value="Manager">💼 Manager</option>
+                                    <option value="Developer+">💻 Developer+</option>
+                                    <option value="Developer">💻 Developer</option>
+                                    <option value="Teamleitung">🎯 Teamleitung</option>
+                                    <option value="Sr.Admin">🛡️ Sr.Admin</option>
+                                    <option value="Admin">🛡️ Admin</option>
+                                    <option value="Jr.Admin">🛡️ Jr.Admin</option>
+                                    <option value="Content+">🎬 Content+</option>
+                                    <option value="Content">🎬 Content</option>
+                                    <option value="Jr.Content">🎬 Jr.Content</option>
+                                    <option value="Sr.Mod">⚔️ Sr.Mod</option>
+                                    <option value="Mod">⚔️ Mod</option>
+                                    <option value="Jr.Mod">⚔️ Jr.Mod</option>
+                                    <option value="Sr.Supporter">🤝 Sr.Supporter</option>
+                                    <option value="Supporter">🤝 Supporter</option>
+                                    <option value="Jr.Supporter">🤝 Jr.Supporter</option>
+                                    <option value="Content-Creator">🎥 Content-Creator</option>
+                                </select>
+                            </div>
+                            <button class="add-btn" onclick="addMember()">Mitglied hinzufügen</button>
+                        </div>
+
+                        <h3 style="margin-bottom: 20px; color: #a855f7;">Aktuelle Teammitglieder</h3>
+                        <div class="members-list" id="membersList">
+                            <div class="member-card">
+                                <div class="member-info">
+                                    <span class="member-name">@𝐆𝐨𝐬𝐭𝐥𝐞𝐟𝐭</span>
+                                    <span class="member-role">👑 Owner</span>
+                                </div>
+                                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-info">
+                                    <span class="member-name">@M…</span>
+                                    <span class="member-role">⭐ Co-Owner</span>
+                                </div>
+                                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-info">
+                                    <span class="member-name">@Mr_Wuff</span>
+                                    <span class="member-role">💻 Developer+</span>
+                                </div>
+                                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-info">
+                                    <span class="member-name">@𝐉𝐨𝐧𝐨𝐱</span>
+                                    <span class="member-role">🛡️ Jr.Admin</span>
+                                </div>
+                                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-info">
+                                    <span class="member-name">@Shotti</span>
+                                    <span class="member-role">⚔️ Mod</span>
+                                </div>
+                                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sterne generieren
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 150; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+
+        // Section Toggle Funktion
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const isActive = content.classList.contains('active');
+            
+            if (isActive) {
+                content.classList.remove('active');
+                header.classList.remove('active');
+            } else {
+                content.classList.add('active');
+                header.classList.add('active');
+            }
+        }
+
+        // Mitglied hinzufügen
+        function addMember() {
+            const name = document.getElementById('memberName').value;
+            const role = document.getElementById('memberRole').value;
+            
+            if (name.trim() === '') {
+                alert('Bitte geben Sie einen Benutzernamen ein!');
+                return;
+            }
+
+            const membersList = document.getElementById('membersList');
+            const memberCard = document.createElement('div');
+            memberCard.className = 'member-card';
+            memberCard.innerHTML = `
+                <div class="member-info">
+                    <span class="member-name">${name}</span>
+                    <span class="member-role">${role}</span>
+                </div>
+                <button class="delete-btn" onclick="deleteMember(this)">Entfernen</button>
+            `;
+            
+            membersList.appendChild(memberCard);
+            
+            // Formular zur
